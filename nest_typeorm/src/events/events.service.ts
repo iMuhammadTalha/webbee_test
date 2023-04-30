@@ -1,13 +1,16 @@
-import { Repository } from 'typeorm';
+import { IsNull, MoreThan, Not, Repository } from 'typeorm';
 import { Get, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Event } from './entities/event.entity';
+import { Workshop } from './entities/workshop.entity';
 
 @Injectable()
 export class EventsService {
   constructor(
     @InjectRepository(Event)
     private eventRepository: Repository<Event>,
+    @InjectRepository(Workshop)
+    private workshopRepository: Repository<Workshop>,
   ) {}
 
   getWarmupEvents() {
@@ -93,7 +96,16 @@ export class EventsService {
 
   @Get('events')
   async getEventsWithWorkshops() {
-    throw new Error('TODO task 1');
+    
+  const events = await this.eventRepository.find();
+    
+  // Fetch workshops for all events
+  await Promise.all(events.map(async (event) => {
+    const workshops = await this.workshopRepository.find({ where: { eventId: event.id }});
+    event.workshops=workshops;
+  }));
+  return events
+    // throw new Error('TODO task 1');
   }
 
   /* TODO: complete getFutureEventWithWorkshops so that it returns events with workshops, that have not yet started
@@ -164,6 +176,19 @@ export class EventsService {
      */
   @Get('futureevents')
   async getFutureEventWithWorkshops() {
-    throw new Error('TODO task 2');
+    const events = await this.eventRepository.find();
+  // Fetch workshops for future events
+  await Promise.all(events.map(async (event) => {
+    const workshops = await this.workshopRepository.find({ where: { eventId: event.id, start: MoreThan(new Date().toISOString()) }});
+    if(workshops){
+      event.workshops=workshops;
+    } else {
+      event.workshops = [];
+    }
+  }));
+  
+  return events.filter(event => event.workshops.length != 0)
+
+    // throw new Error('TODO task 2');
   }
 }
